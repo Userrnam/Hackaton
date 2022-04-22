@@ -6,9 +6,12 @@
 int main() {
     Graph graph;
 
-    graph.load("test20.txt");
+    graph.load("test.txt");
 
     ComposerParams params;
+    params.container_sizes = {
+        2, 3, 3
+    };
     auto containers = compose(&graph, &params);
 
     Board board;

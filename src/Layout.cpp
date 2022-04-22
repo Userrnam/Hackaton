@@ -8,7 +8,7 @@ template<typename T>
 int max_index(const std::vector<T>& v) {
     int max_ind = 0;
     for (int i = 1; i < v.size(); ++i) {
-        if (v[i] < v[max_ind]) {
+        if (v[i] > v[max_ind]) {
             max_ind = i;
         }
     }
@@ -34,13 +34,14 @@ int choose_container(const std::vector<int>& placed, const std::vector<Container
         }
     }
 
-    return values[max_index(values)];
+    return max_index(values);
 }
 
 void sequential_stage(Layout& layout, const std::vector<Container>& containers) {
     assert(containers.size());
 
     std::vector<int> placed;
+    int placed_count = 0;
     placed.resize(containers.size(), 0);
 
     placed[0] = 1;
@@ -52,7 +53,11 @@ void sequential_stage(Layout& layout, const std::vector<Container>& containers) 
     for (int row = 0; row < layout.blocks.size(); ++row) {
         int col = start_col;
         for ( ; col >= 0 && col < layout.blocks[row].size(); col += delta) {
+            if (placed_count == containers.size()) {
+                return;
+            }
             int container_index = choose_container(placed, containers);
+            placed_count++;
             placed[container_index] = 1;
             layout.blocks[row][col] = container_index;
             layout.container_coords[container_index] = { row, col };
@@ -86,6 +91,12 @@ float dL(Layout& layout, const std::vector<Container>& containers, int v1, int v
     auto coords1 = layout.container_coords[v1];
     auto coords2 = layout.container_coords[v2];
     auto l1 = relative_length(layout, containers[v1], coords2.x, coords2.y);
+
+    // move to new location
+    if (v2 == -1) {
+        return distances[v1] - l1;
+    }
+
     auto l2 = relative_length(layout, containers[v2], coords1.x, coords1.y);
     return distances[v1] + distances[v2] - (l1 + l2);
 }
@@ -113,8 +124,7 @@ bool iterate(Layout& layout, const std::vector<Container>& containers) {
     xc += layout.container_coords[container_index].x;
     yc += layout.container_coords[container_index].y;
 
-    int target = -1;
-
+    Coord target;
     float dL_max = INT_MIN;
 
     // [xc, yc]
@@ -122,7 +132,8 @@ bool iterate(Layout& layout, const std::vector<Container>& containers) {
         float t = dL(layout, containers, container_index, layout.blocks[xc][yc], distances);
         if (t > dL_max) {
             dL_max = t;
-            target = layout.blocks[xc][yc];
+            target.x = xc;
+            target.y = yc;
         }
     }
 
@@ -131,7 +142,8 @@ bool iterate(Layout& layout, const std::vector<Container>& containers) {
         float t = dL(layout, containers, container_index, layout.blocks[xc+1][yc], distances);
         if (t > dL_max) {
             dL_max = t;
-            target = layout.blocks[xc+1][yc];
+            target.x = xc+1;
+            target.y = yc;
         }
     }
 
@@ -140,7 +152,8 @@ bool iterate(Layout& layout, const std::vector<Container>& containers) {
         float t = dL(layout, containers, container_index, layout.blocks[xc][yc+1], distances);
         if (t > dL_max) {
             dL_max = t;
-            target = layout.blocks[xc][yc+1];
+            target.x = xc;
+            target.y = yc+1;
         }
     }
 
@@ -149,20 +162,22 @@ bool iterate(Layout& layout, const std::vector<Container>& containers) {
         float t = dL(layout, containers, container_index, layout.blocks[xc+1][yc+1], distances);
         if (t > dL_max) {
             dL_max = t;
-            target = layout.blocks[xc+1][yc+1];
+            target.x = xc+1;
+            target.y = yc+1;
         }
     }
 
     if (dL_max > 0) {
-        // swap containers
         auto coord1 = layout.container_coords[container_index];
-        auto coord2 = layout.container_coords[target];
+        int id = layout.blocks[target.x][target.y];
 
-        layout.blocks[coord1.x][coord1.y] = target;
-        layout.blocks[coord2.x][coord2.y] = container_index;
+        layout.blocks[coord1.x][coord1.y] = layout.blocks[target.x][target.y];
+        layout.blocks[target.x][target.y] = container_index;
 
-        layout.container_coords[target] = coord1;
-        layout.container_coords[container_index] = coord2;
+        if (id != -1) {
+            layout.container_coords[id] = coord1;
+        }
+        layout.container_coords[container_index] = target;
 
         return true;
     }

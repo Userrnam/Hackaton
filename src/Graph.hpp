@@ -4,12 +4,13 @@
 #include <string>
 
 struct Connection {
-    int index;
-    int weight;
+    int index = 0;
+    int weight = 0;
 };
 
 struct Node {
     std::vector<Connection> connections;
+    int weight = 0;
 };
 
 struct Graph {

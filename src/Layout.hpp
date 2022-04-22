@@ -3,13 +3,13 @@
 #include "Composer.hpp"
 
 struct Coord {
-    int x;
-    int y;
+    int x = 0;
+    int y = 0;
 };
 
 struct Board {
-    int width;
-    int height;
+    int width = 0;
+    int height = 0;
 };
 
 struct Layout {

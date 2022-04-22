@@ -35,6 +35,7 @@ void Graph::load(const std::string& path) {
                 conn.index = i;
                 conn.weight = digits[i];
                 node.connections.push_back(conn);
+                node.weight += digits[i];
             }
         }
         nodes.push_back(node);
