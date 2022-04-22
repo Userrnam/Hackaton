@@ -3,6 +3,8 @@
 
 struct Container {
     std::vector<int> nodes;
+    std::vector<Connection> connections;
+    int weight;
 };
 
 struct ComposerParams {

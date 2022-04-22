@@ -32,7 +32,7 @@ void Graph::load(const std::string& path) {
         for (int i = 0; i < digits.size(); ++i) {
             if (digits[i]) {
                 Connection conn;
-                conn.node_index = i;
+                conn.index = i;
                 conn.weight = digits[i];
                 node.connections.push_back(conn);
             }

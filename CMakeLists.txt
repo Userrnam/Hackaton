@@ -8,5 +8,7 @@ set(CMAKE_CXX_FLAGS "-g")
 include_directories(/usr/local/include)
 add_executable(${PROJECT_NAME}
 	src/Graph.cpp
+	src/Composer.cpp
+	src/Layout.cpp
 	src/main.cpp
 )

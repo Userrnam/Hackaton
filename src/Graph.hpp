@@ -4,7 +4,7 @@
 #include <string>
 
 struct Connection {
-    int node_index;
+    int index;
     int weight;
 };
 
