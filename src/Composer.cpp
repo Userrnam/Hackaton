@@ -1,10 +1,10 @@
 #include "Composer.hpp"
 
 
-void sequential_stage(std::vector<Container>& containers, Graph *graph, std::vector<int> container_sizes) {
+void sequential_stage(std::vector<Container>& containers, Graph *graph, std::vector<int> container_sizes, std::vector<int>& nodes_in_container) {
     assert(container_sizes.size());
+    assert(graph->nodes.size());
 
-    std::vector<int> nodes_in_container; // index is node, value is container this node is in
     nodes_in_container.resize(graph->nodes.size(), -1);
     int nodes_in_container_count = 0;
 
@@ -115,9 +115,83 @@ void sequential_stage(std::vector<Container>& containers, Graph *graph, std::vec
     }
 }
 
+int external_connections(int m_node, int m_container_index, int e_container_index, Graph *graph, const std::vector<int>& nodes_in_container) {
+    assert(nodes_in_container.size());
+
+    int count = 0;
+    for (auto conn : graph->nodes[m_node].connections) {
+        if (nodes_in_container[conn.index] == m_container_index) {
+            count -= conn.weight;
+        } else if (nodes_in_container[conn.index] == e_container_index) {
+            count += conn.weight;
+        }
+    }
+    return count;
+}
+
+bool iterative_stage(int mod_container_index, std::vector<Container>& containers, Graph *graph, std::vector<int>& nodes_in_container) {
+    assert(nodes_in_container.size());
+
+    auto& m_container = containers[mod_container_index];
+
+    while (true) {
+        int max_delta = -1;
+        int mod_node_index = 0;
+        int ext_node_index  = 0;
+        int ext_container_index = 0;
+
+        for (int m_node_index = 0; m_node_index < m_container.nodes.size(); ++m_node_index) {
+            int m_node = m_container.nodes[m_node_index];
+            for (int e_container_index = mod_container_index+1; e_container_index < containers.size(); ++e_container_index) {
+                int ext1 = external_connections(m_node, mod_container_index, e_container_index, graph, nodes_in_container);
+                auto& e_container = containers[e_container_index];
+                for (int e_node_index = 0; e_node_index < e_container.nodes.size(); ++e_node_index) {
+                    int e_node = e_container.nodes[e_node_index];
+                    int ext2 = external_connections(e_node, e_container_index, mod_container_index, graph, nodes_in_container);
+                    int same = 0;
+                    for (auto conn : graph->nodes[m_node].connections) {
+                        if (conn.index == e_node) {
+                            same = conn.weight;
+                            break;
+                        }
+                    }
+
+                    int delta = ext1 + ext2 - 2 * same;
+                    if (delta > max_delta) {
+                        max_delta = delta;
+                        mod_node_index = m_node_index;
+                        ext_node_index = e_node_index;
+                        ext_container_index = e_container_index;
+                    }
+                }
+            }
+        }
+
+        // swap nodes
+        if (max_delta > 0) {
+            auto& e_container = containers[ext_container_index];
+            int m_node = m_container.nodes[mod_node_index];
+            int e_node = e_container.nodes[ext_node_index];
+
+            e_container.nodes[ext_node_index] = m_node;
+            m_container.nodes[mod_node_index] = e_node;
+
+            nodes_in_container[ext_node_index] = mod_container_index;
+            nodes_in_container[mod_node_index] = ext_container_index;
+        } else {
+            return false;
+        }
+    }
+}
+
 std::vector<Container> compose_iteration(Graph *graph, std::vector<int> container_sizes, int *total_connections) {
     std::vector<Container> containers;
-    sequential_stage(containers, graph, container_sizes);
+    std::vector<int> nodes_in_container; // index is node, value is container this node is in
+    sequential_stage(containers, graph, container_sizes, nodes_in_container);
+
+    for (int i = 0; i < containers.size()-1; ++i) {
+        iterative_stage(i, containers, graph, nodes_in_container);
+    }
 
     return containers;
 }
