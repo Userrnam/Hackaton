@@ -41,12 +41,12 @@ void sequential_stage(Layout& layout, const std::vector<Container>& containers) 
     assert(containers.size());
 
     std::vector<int> placed;
-    int placed_count = 0;
     placed.resize(containers.size(), 0);
 
     placed[0] = 1;
     layout.blocks[0][0] = 0;
     layout.container_coords[0] = { 0, 0 };
+    int placed_count = 1;
 
     int start_col = 1;
     int delta = 1;
@@ -87,17 +87,32 @@ float relative_length(Layout& layout, const Container& container, int cx, int cy
     return l / container.weight;
 }
 
-float dL(Layout& layout, const std::vector<Container>& containers, int v1, int v2, const std::vector<float>& distances) {
-    auto coords1 = layout.container_coords[v1];
-    auto coords2 = layout.container_coords[v2];
-    auto l1 = relative_length(layout, containers[v1], coords2.x, coords2.y);
+float dL(Layout& layout, const std::vector<Container>& containers, Coord coord1, Coord coord2, const std::vector<float>& distances) {
+    int v1 = layout.blocks[coord1.x][coord1.y];
+    int v2 = layout.blocks[coord2.x][coord2.y];
+
+    // swap containers
+    if (v2 != -1) {
+        layout.container_coords[v2] = coord1;
+    }
+    layout.container_coords[v1] = coord2;
+
+    auto l1 = relative_length(layout, containers[v1], coord2.x, coord2.y);
 
     // move to new location
     if (v2 == -1) {
+        // swap back
+        layout.container_coords[v1] = coord1;
+
         return distances[v1] - l1;
     }
 
-    auto l2 = relative_length(layout, containers[v2], coords1.x, coords1.y);
+    auto l2 = relative_length(layout, containers[v2], coord1.x, coord1.y);
+
+    // swap back
+    layout.container_coords[v2] = coord2;
+    layout.container_coords[v1] = coord1;
+
     return distances[v1] + distances[v2] - (l1 + l2);
 }
 
@@ -108,28 +123,32 @@ bool iterate(Layout& layout, const std::vector<Container>& containers) {
         distances[i] = relative_length(layout, containers[i], layout.container_coords[i].x, layout.container_coords[i].y);
     }
 
-    float container_index = max_index(distances);
+    int container_index = max_index(distances);
+    Coord container_coord = layout.container_coords[container_index];
 
     // calculate center of mass
     int xc = 0;
     int yc = 0;
     for (auto conn : containers[container_index].connections) {
-        xc += conn.weight * (layout.container_coords[container_index].x - layout.container_coords[conn.index].x);
-        yc += conn.weight * (layout.container_coords[container_index].y - layout.container_coords[conn.index].y);
+        xc += conn.weight * (container_coord.x - layout.container_coords[conn.index].x);
+        yc -= conn.weight * (container_coord.y - layout.container_coords[conn.index].y);
     }
     xc /= containers[container_index].weight;
     yc /= containers[container_index].weight;
 
     // center of mass in global coordinate system
-    xc += layout.container_coords[container_index].x;
-    yc += layout.container_coords[container_index].y;
+    xc += container_coord.x;
+    yc += container_coord.y;
+
+    assert(xc >= 0);
+    assert(yc >= 0);
 
     Coord target;
     float dL_max = INT_MIN;
 
     // [xc, yc]
     {
-        float t = dL(layout, containers, container_index, layout.blocks[xc][yc], distances);
+        float t = dL(layout, containers, container_coord, { xc, yc }, distances);
         if (t > dL_max) {
             dL_max = t;
             target.x = xc;
@@ -139,7 +158,7 @@ bool iterate(Layout& layout, const std::vector<Container>& containers) {
 
     // [xc+1, yc]
     if (xc+1 < layout.blocks.size()) {
-        float t = dL(layout, containers, container_index, layout.blocks[xc+1][yc], distances);
+        float t = dL(layout, containers, container_coord, { xc+1, yc }, distances);
         if (t > dL_max) {
             dL_max = t;
             target.x = xc+1;
@@ -149,7 +168,7 @@ bool iterate(Layout& layout, const std::vector<Container>& containers) {
 
     // [xc, yc+1]
     if (yc+1 < layout.blocks[0].size()) {
-        float t = dL(layout, containers, container_index, layout.blocks[xc][yc+1], distances);
+        float t = dL(layout, containers, container_coord, { xc, yc+1 }, distances);
         if (t > dL_max) {
             dL_max = t;
             target.x = xc;
@@ -159,7 +178,7 @@ bool iterate(Layout& layout, const std::vector<Container>& containers) {
 
     // [xc+1], yc+1]
     if (xc+1 < layout.blocks.size() && yc+1 < layout.blocks[0].size()) {
-        float t = dL(layout, containers, container_index, layout.blocks[xc+1][yc+1], distances);
+        float t = dL(layout, containers, container_coord, { xc+1, yc+1 }, distances);
         if (t > dL_max) {
             dL_max = t;
             target.x = xc+1;
@@ -168,7 +187,7 @@ bool iterate(Layout& layout, const std::vector<Container>& containers) {
     }
 
     if (dL_max > 0) {
-        auto coord1 = layout.container_coords[container_index];
+        auto coord1 = container_coord;
         int id = layout.blocks[target.x][target.y];
 
         layout.blocks[coord1.x][coord1.y] = layout.blocks[target.x][target.y];
