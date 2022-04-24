@@ -11,13 +11,32 @@ void sequential_stage(std::vector<Container>& containers, Graph *graph, std::vec
     while (nodes_in_container_count != graph->nodes.size()) {
         Container container;
 
-        // chose container
+        if (container_sizes.size() == 1) {
+            for (int i = 0; i < graph->nodes.size(); ++i) {
+                if (nodes_in_container[i] == -1) {
+                    container.nodes.push_back(i);
+                    nodes_in_container[i] = containers.size();
+                }
+            }
+            containers.push_back(container);
+            break;
+        }
+
+        // chose node
         int min_index  = 0;
         int min_weight = INT_MAX;
         for (int i = 0; i < graph->nodes.size(); ++i) {
-            if (nodes_in_container[i] == -1 && graph->nodes[i].weight < min_weight) {
-                min_index = i;
-                min_weight = graph->nodes[min_index].weight;
+            if (nodes_in_container[i] == -1) {
+                int weight = 0;
+                for (auto conn : graph->nodes[i].connections) {
+                    if (nodes_in_container[conn.index] == -1) {
+                        weight += conn.weight;
+                    }
+                }
+                if (weight < min_weight) {
+                    min_index = i;
+                    min_weight = weight;
+                }
             }
         }
 
@@ -33,11 +52,13 @@ void sequential_stage(std::vector<Container>& containers, Graph *graph, std::vec
             }
         }
 
+        // FIXME: use better strategy
         // choose container
         int size_index = container_sizes.size()-1;
         for (int i = 0; i < container_sizes.size(); ++i) {
             if (container_sizes[i] == container.nodes.size()) {
                 size_index = i;
+                break;
             }
         }
 
@@ -80,8 +101,8 @@ void sequential_stage(std::vector<Container>& containers, Graph *graph, std::vec
             });
 
             // remove nodes from container
-            while (container.nodes.size() == size) {
-                nodes_in_container[deltas.back().index] = -1;
+            while (container.nodes.size() != size) {
+                nodes_in_container[container.nodes[deltas.back().index]] = -1;
                 container.nodes.erase(container.nodes.begin() + deltas.back().index);
                 nodes_in_container_count--;
                 deltas.pop_back();
@@ -91,28 +112,6 @@ void sequential_stage(std::vector<Container>& containers, Graph *graph, std::vec
         containers.push_back(container);
     }
 
-    // find connections
-    for (auto& container : containers) {
-        container.weight = 0;
-        for (int node : container.nodes) {
-            // find con
-            bool conn_found = false;
-            for (auto& conn : container.connections) {
-                if (conn.index == nodes_in_container[node]) {
-                    conn_found = true;
-                    conn.weight += graph->nodes[node].weight;
-                    break;
-                }
-            }
-            if (!conn_found) {
-                Connection conn;
-                conn.index = nodes_in_container[node];
-                conn.weight = graph->nodes[node].weight;
-                container.connections.push_back(conn);
-            }
-            container.weight += graph->nodes[node].weight;
-        }
-    }
 }
 
 int external_connections(int m_node, int m_container_index, int e_container_index, Graph *graph, const std::vector<int>& nodes_in_container) {
@@ -129,7 +128,7 @@ int external_connections(int m_node, int m_container_index, int e_container_inde
     return count;
 }
 
-bool iterative_stage(int mod_container_index, std::vector<Container>& containers, Graph *graph, std::vector<int>& nodes_in_container) {
+void iterative_stage(int mod_container_index, std::vector<Container>& containers, Graph *graph, std::vector<int>& nodes_in_container) {
     assert(nodes_in_container.size());
 
     auto& m_container = containers[mod_container_index];
@@ -140,6 +139,7 @@ bool iterative_stage(int mod_container_index, std::vector<Container>& containers
         int ext_node_index  = 0;
         int ext_container_index = 0;
 
+        // find max in R matrix
         for (int m_node_index = 0; m_node_index < m_container.nodes.size(); ++m_node_index) {
             int m_node = m_container.nodes[m_node_index];
             for (int e_container_index = mod_container_index+1; e_container_index < containers.size(); ++e_container_index) {
@@ -173,13 +173,14 @@ bool iterative_stage(int mod_container_index, std::vector<Container>& containers
             int m_node = m_container.nodes[mod_node_index];
             int e_node = e_container.nodes[ext_node_index];
 
+            // update container nodes
             e_container.nodes[ext_node_index] = m_node;
             m_container.nodes[mod_node_index] = e_node;
 
             nodes_in_container[ext_node_index] = mod_container_index;
             nodes_in_container[mod_node_index] = ext_container_index;
         } else {
-            return false;
+            return;
         }
     }
 }
@@ -193,6 +194,35 @@ std::vector<Container> compose_iteration(Graph *graph, std::vector<int> containe
         iterative_stage(i, containers, graph, nodes_in_container);
     }
 
+    // find connections
+    for (int container_index = 0; container_index < containers.size(); ++container_index) {
+        auto& container = containers[container_index];
+        container.weight = 0;
+        for (int node : container.nodes) {
+            for (auto node_conn : graph->nodes[node].connections) {
+                if (nodes_in_container[node_conn.index] == container_index) {
+                    continue;
+                }
+                // find existing connection
+                bool conn_found = false;
+                for (auto& conn : container.connections) {
+                    if (conn.index == nodes_in_container[node_conn.index]) {
+                        conn_found = true;
+                        conn.weight += node_conn.weight;
+                        break;
+                    }
+                }
+                if (!conn_found) {
+                    Connection conn;
+                    conn.index = nodes_in_container[node_conn.index];
+                    conn.weight = node_conn.weight;
+                    container.connections.push_back(conn);
+                }
+                container.weight += node_conn.weight;
+            }
+        }
+    }
+
     return containers;
 }
 
@@ -200,4 +230,13 @@ std::vector<Container> compose(Graph *graph, ComposerParams *params) {
     int total_connections;
     auto res = compose_iteration(graph, params->container_sizes, &total_connections);
     return res;
+}
+
+int cost(const std::vector<Container>& containers) {
+    int c = 0;
+    for (int i = 0; i < containers.size(); ++i) {
+        c += containers[i].weight;
+    }
+    assert(!(c & 1));
+    return c >> 1;
 }

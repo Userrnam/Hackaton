@@ -11,4 +11,6 @@ struct ComposerParams {
     std::vector<int> container_sizes;
 };
 
+int cost(const std::vector<Container>& containers);
+
 std::vector<Container> compose(Graph *graph, ComposerParams *params);
