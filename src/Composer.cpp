@@ -1,5 +1,7 @@
 #include "Composer.hpp"
 
+#include <map>
+
 
 void sequential_stage(std::vector<Container>& containers, Graph *graph, std::vector<int> container_sizes, std::vector<int>& nodes_in_container) {
     assert(container_sizes.size());
@@ -177,15 +179,15 @@ void iterative_stage(int mod_container_index, std::vector<Container>& containers
             e_container.nodes[ext_node_index] = m_node;
             m_container.nodes[mod_node_index] = e_node;
 
-            nodes_in_container[ext_node_index] = mod_container_index;
-            nodes_in_container[mod_node_index] = ext_container_index;
+            nodes_in_container[e_node] = mod_container_index;
+            nodes_in_container[m_node] = ext_container_index;
         } else {
             return;
         }
     }
 }
 
-std::vector<Container> compose_iteration(Graph *graph, std::vector<int> container_sizes, int *total_connections) {
+std::vector<Container> compose_iteration(Graph *graph, std::vector<int> container_sizes) {
     std::vector<Container> containers;
     std::vector<int> nodes_in_container; // index is node, value is container this node is in
     sequential_stage(containers, graph, container_sizes, nodes_in_container);
@@ -226,9 +228,80 @@ std::vector<Container> compose_iteration(Graph *graph, std::vector<int> containe
     return containers;
 }
 
+struct Iterator {
+    std::vector<int> alphabet;
+    std::vector<int> last_permutation;
+    int max_size = 0;
+
+    bool next(std::vector<int>& container_sizes) {
+        container_sizes.clear();
+
+        // this is first permutation
+        if (last_permutation.empty()) {
+            int size = 0;
+            while (size < max_size) {
+                size += alphabet[0];
+                container_sizes.push_back(alphabet[0]);
+                last_permutation.push_back(0);
+            }
+            return true;
+        }
+
+        // next permutation
+        bool next_found = false;
+        for (int i = last_permutation.size()-1; i >= 0; --i) {
+            if (last_permutation[i] != alphabet.size()-1) {
+                next_found = true;
+                int t = last_permutation[i] + 1;
+                for (int k = i; k < last_permutation.size(); ++k) {
+                    last_permutation[k] = t;
+                }
+                break;
+            }
+        }
+
+        if (!next_found) {
+            return false;
+        }
+
+        int size = 0;
+        for (int i = last_permutation.size()-1; size < max_size; --i) {
+            assert(i >= 0);
+
+            int t = alphabet[last_permutation[i]];
+            container_sizes.push_back(t);
+            size += t;
+        }
+
+        return true;
+    }
+};
+
 std::vector<Container> compose(Graph *graph, ComposerParams *params) {
-    int total_connections;
-    auto res = compose_iteration(graph, params->container_sizes, &total_connections);
+    int min_cost = INT_MAX;
+    std::vector<Container> res;
+    std::map<std::vector<int>, bool> seen_previously;
+
+    Iterator it;
+    it.alphabet = params->container_sizes;
+    it.max_size = graph->nodes.size();
+
+    std::vector<int> container_sizes;
+    while (it.next(container_sizes)) {
+        // std::cout << container_sizes << std::endl;
+        if (seen_previously.find(container_sizes) != seen_previously.end()) {
+            break;
+        }
+        seen_previously[container_sizes] = 1;
+
+        auto t = compose_iteration(graph, container_sizes);
+        int t_cost = cost(t);
+        if (t_cost < min_cost) {
+            min_cost = t_cost;
+            res = t;
+        }
+    }
+
     return res;
 }
 

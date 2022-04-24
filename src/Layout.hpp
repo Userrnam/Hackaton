@@ -17,6 +17,19 @@ struct Layout {
     // -1 => place is empty
     std::vector<std::vector<int>> blocks;
     std::vector<Coord> container_coords;
+
+    void print() {
+        for (int x = 0; x < blocks.size(); ++x) {
+            for (int y = 0; y < blocks[x].size(); ++y) {
+                if (blocks[x][y] == -1) {
+                    printf("    ");
+                } else {
+                    printf("%3d ", blocks[x][y]);
+                }
+            }
+            printf("\n");
+        }
+    }
 };
 
 Layout create_layout(const std::vector<Container>& containers, const Board& board);

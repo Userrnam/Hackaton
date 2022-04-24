@@ -11,7 +11,7 @@ int main() {
 
     ComposerParams params;
     params.container_sizes = {
-        2, 2, 3
+        2, 3, 4
     };
     auto containers = compose(&graph, &params);
     std::cout << "Nodes in containers:\n";
@@ -33,14 +33,5 @@ int main() {
     auto layout = create_layout(containers, board);
 
     std::cout << "Optimal container layout:\n";
-    for (int x = 0; x < layout.blocks.size(); ++x) {
-        for (int y = 0; y < layout.blocks[x].size(); ++y) {
-            if (layout.blocks[x][y] == -1) {
-                printf("    ");
-            } else {
-                printf("%3d ", layout.blocks[x][y]);
-            }
-        }
-        std::cout << std::endl;
-    }
+    layout.print();
 }
