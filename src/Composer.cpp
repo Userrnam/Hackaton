@@ -69,12 +69,25 @@ void sequential_stage(std::vector<Container>& containers, Graph *graph, std::vec
 
         // add nodes to container
         while (size > container.nodes.size() && nodes_in_container_count < graph->nodes.size()) {
-            for (int parent : container.nodes) {
+            int max_parent = container.nodes.size();
+            bool found = false;
+            for (int parent_index = 0; parent_index < max_parent; ++parent_index) {
+                int parent = container.nodes[parent_index];
                 for (auto conn : graph->nodes[parent].connections) {
                     if (nodes_in_container[conn.index] == -1) {
+                        found = true;
                         container.nodes.push_back(conn.index);
                         nodes_in_container_count++;
                         nodes_in_container[conn.index] = containers.size();
+                    }
+                }
+            }
+            if (!found) {
+                // add any nodes
+                for (int i = 0; size > container.nodes.size(); ++i) {
+                    if (nodes_in_container[i] == -1) {
+                        nodes_in_container[i] = containers.size();
+                        container.nodes.push_back(i);
                     }
                 }
             }
@@ -289,8 +302,8 @@ std::vector<Container> compose(Graph *graph, ComposerParams *params) {
     it.max_size = graph->nodes.size();
 
     std::vector<int> container_sizes;
+    int i = 0;
     while (it.next(container_sizes)) {
-        // std::cout << container_sizes << std::endl;
         if (seen_previously.find(container_sizes) != seen_previously.end()) {
             break;
         }

@@ -7,11 +7,11 @@
 int main() {
     Graph graph;
 
-    graph.load("test.txt");
+    graph.load("test250.txt");
 
     ComposerParams params;
     params.container_sizes = {
-        2, 3, 4
+        30,45,55,70,80
     };
     auto containers = compose(&graph, &params);
     std::cout << "Nodes in containers:\n";

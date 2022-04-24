@@ -221,6 +221,12 @@ Layout create_layout(const std::vector<Container>& containers, const Board& boar
         layout.blocks[i].resize(board.width, -1);
     }
 
+    if (containers.size() == 1) {
+        layout.container_coords[0] = { 0, 0 };
+        layout.blocks[0][0] = 0;
+        return layout;
+    }
+
     sequential_stage(layout, containers);
 
     while (iterate(layout, containers)) {  }
