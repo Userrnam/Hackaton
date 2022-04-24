@@ -1,4 +1,5 @@
 #include <iostream>
+#include <stdio.h>
 
 #include "Graph.hpp"
 #include "Layout.hpp"
@@ -13,6 +14,14 @@ int main() {
         2, 2, 3
     };
     auto containers = compose(&graph, &params);
+    std::cout << "Nodes in containers:\n";
+    for (int i = 0; i < containers.size(); ++i) {
+        printf("Container %3d: [ ", i);
+        for (auto& node : containers[i].nodes) {
+            printf("%3d ", node);
+        }
+        printf("];\n");
+    }
 
     // show value of cost function
     std::cout << "Cost: " << cost(containers) << std::endl;
@@ -22,5 +31,16 @@ int main() {
     board.height = 3;
 
     auto layout = create_layout(containers, board);
-    std::cout << "Hello\n";
+
+    std::cout << "Optimal container layout:\n";
+    for (int x = 0; x < layout.blocks.size(); ++x) {
+        for (int y = 0; y < layout.blocks[x].size(); ++y) {
+            if (layout.blocks[x][y] == -1) {
+                printf("    ");
+            } else {
+                printf("%3d ", layout.blocks[x][y]);
+            }
+        }
+        std::cout << std::endl;
+    }
 }

@@ -130,8 +130,8 @@ bool iterate(Layout& layout, const std::vector<Container>& containers) {
     int xc = 0;
     int yc = 0;
     for (auto conn : containers[container_index].connections) {
-        xc += conn.weight * (container_coord.x - layout.container_coords[conn.index].x);
-        yc -= conn.weight * (container_coord.y - layout.container_coords[conn.index].y);
+        xc += conn.weight * (layout.container_coords[conn.index].x - container_coord.x);
+        yc += conn.weight * (layout.container_coords[conn.index].y - container_coord.y);
     }
     xc /= containers[container_index].weight;
     yc /= containers[container_index].weight;
@@ -140,8 +140,8 @@ bool iterate(Layout& layout, const std::vector<Container>& containers) {
     xc += container_coord.x;
     yc += container_coord.y;
 
-    assert(xc >= 0);
-    assert(yc >= 0);
+    assert(xc >= 0 && xc < layout.blocks.size());
+    assert(yc >= 0 && yc < layout.blocks[0].size());
 
     Coord target;
     float dL_max = INT_MIN;
