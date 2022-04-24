@@ -99,15 +99,17 @@ void sequential_stage(std::vector<Container>& containers, Graph *graph, std::vec
             }
 
             std::sort(deltas.begin(), deltas.end(), [](DeltaIndex a, DeltaIndex b) {
-                return a.delta < b.delta;
+                return a.delta > b.delta;
             });
 
-            // remove nodes from container
-            while (container.nodes.size() != size) {
-                nodes_in_container[container.nodes[deltas.back().index]] = -1;
-                container.nodes.erase(container.nodes.begin() + deltas.back().index);
+            auto to_remove = std::vector(deltas.begin(), deltas.begin() + container.nodes.size() - size);
+            std::sort(to_remove.begin(), to_remove.end(), [](DeltaIndex a, DeltaIndex b) {
+                return a.index > b.index;
+            });
+            for (auto e : to_remove) {
+                nodes_in_container[container.nodes[e.index]] = -1;
+                container.nodes.erase(container.nodes.begin() + e.index);
                 nodes_in_container_count--;
-                deltas.pop_back();
             }
         }
 
