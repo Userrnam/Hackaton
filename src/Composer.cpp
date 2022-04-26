@@ -147,13 +147,18 @@ int external_connections(int m_node, int m_container_index, int e_container_inde
     return count;
 }
 
-void iterative_stage(int mod_container_index, std::vector<Container>& containers, Graph *graph, std::vector<int>& nodes_in_container) {
+struct Container_Node {
+    std::vector<int> weight_to_container;
+};
+
+void iterative_stage(int mod_container_index, std::vector<Container>& containers, Graph *graph, std::vector<int>& nodes_in_container, std::vector<Container_Node>& container_nodes) {
     assert(nodes_in_container.size());
 
     auto& m_container = containers[mod_container_index];
 
+    auto start = time(NULL);
     while (true) {
-        int max_delta = -1;
+        int max_delta = -1000;
         int mod_node_index = 0;
         int ext_node_index  = 0;
         int ext_container_index = 0;
@@ -162,20 +167,39 @@ void iterative_stage(int mod_container_index, std::vector<Container>& containers
         for (int m_node_index = 0; m_node_index < m_container.nodes.size(); ++m_node_index) {
             int m_node = m_container.nodes[m_node_index];
             for (int e_container_index = mod_container_index+1; e_container_index < containers.size(); ++e_container_index) {
-                int ext1 = external_connections(m_node, mod_container_index, e_container_index, graph, nodes_in_container);
+                // int ext1_check = external_connections(m_node, mod_container_index, e_container_index, graph, nodes_in_container);
+
+                int ext1 = container_nodes[m_node].weight_to_container[e_container_index] - 
+                           container_nodes[m_node].weight_to_container[mod_container_index];
+
                 auto& e_container = containers[e_container_index];
                 for (int e_node_index = 0; e_node_index < e_container.nodes.size(); ++e_node_index) {
                     int e_node = e_container.nodes[e_node_index];
-                    int ext2 = external_connections(e_node, e_container_index, mod_container_index, graph, nodes_in_container);
+                    // int ext2_check = external_connections(e_node, e_container_index, mod_container_index, graph, nodes_in_container);
+
+                    int ext2 = container_nodes[e_node].weight_to_container[mod_container_index] - 
+                               container_nodes[e_node].weight_to_container[e_container_index];
+
+                    // if (ext2 != ext2_check || ext1 != ext1_check) {
+                    //     std::cout << "Error\n";
+                    // }
+
+                    int delta = ext1 + ext2;
+
+                    if (delta <= max_delta) {
+                        continue;
+                    }
+
                     int same = 0;
-                    for (auto conn : graph->nodes[m_node].connections) {
+                    for (int conn_index = 0; conn_index < graph->nodes[m_node].connections.size(); ++conn_index) {
+                        auto conn = graph->nodes[m_node].connections[conn_index];
                         if (conn.index == e_node) {
                             same = conn.weight;
                             break;
                         }
                     }
 
-                    int delta = ext1 + ext2 - 2 * same;
+                    delta -= 2 * same;
                     if (delta > max_delta) {
                         max_delta = delta;
                         mod_node_index = m_node_index;
@@ -186,11 +210,33 @@ void iterative_stage(int mod_container_index, std::vector<Container>& containers
             }
         }
 
+        if (max_delta <= 0) {
+            return;
+        }
+
         // swap nodes
         if (max_delta > 0) {
+            static int printer = 0;
+            printer++;
+            if (printer > 100) {
+                std::cout << "Delta: " << max_delta << std::endl;
+                printer = 0;
+            }
+
             auto& e_container = containers[ext_container_index];
             int m_node = m_container.nodes[mod_node_index];
             int e_node = e_container.nodes[ext_node_index];
+
+            // update container_nodes
+            for (auto conn : graph->nodes[m_node].connections) {
+                container_nodes[conn.index].weight_to_container[mod_container_index] -= conn.weight;
+                container_nodes[conn.index].weight_to_container[ext_container_index] += conn.weight;
+            }
+
+            for (auto conn : graph->nodes[e_node].connections) {
+                container_nodes[conn.index].weight_to_container[ext_container_index] -= conn.weight;
+                container_nodes[conn.index].weight_to_container[mod_container_index] += conn.weight;
+            }
 
             // update container nodes
             e_container.nodes[ext_node_index] = m_node;
@@ -209,8 +255,20 @@ std::vector<Container> compose_iteration(Graph *graph, std::vector<int> containe
     std::vector<int> nodes_in_container; // index is node, value is container this node is in
     sequential_stage(containers, graph, container_sizes, nodes_in_container);
 
+    // build container_nodes.
+    std::vector<Container_Node> container_nodes;
+    container_nodes.resize(nodes_in_container.size());
+    for (int node = 0; node < container_nodes.size(); ++node) {
+        container_nodes[node].weight_to_container.resize(containers.size(), 0);
+        for (auto conn : graph->nodes[node].connections) {
+            container_nodes[node].weight_to_container[nodes_in_container[conn.index]] += conn.weight;
+        }
+    }
+
     for (int i = 0; i < containers.size()-1; ++i) {
-        iterative_stage(i, containers, graph, nodes_in_container);
+        std::cout << "Beg " << i << std::endl;
+        iterative_stage(i, containers, graph, nodes_in_container, container_nodes);
+        std::cout << "End " << i << std::endl;
     }
 
     // find connections
@@ -307,6 +365,8 @@ struct Job_Info {
 void execute_job(void *user_data) {
     Job_Info *info = (Job_Info *)user_data;
 
+    auto start = time(NULL);
+
     auto t = compose_iteration(info->graph, info->container_sizes);
     int t_cost = cost(t);
 
@@ -315,6 +375,9 @@ void execute_job(void *user_data) {
         *info->min_cost = t_cost;
         *info->res = t;
     }
+
+    std::cout << "Done in " << time(NULL) - start << std::endl;
+
     info->res_write_mutex->unlock();
 }
 
@@ -327,7 +390,7 @@ std::vector<Container> compose(Graph *graph, ComposerParams *params) {
     std::mutex res_write_mutex;
     std::vector<Job_Info> job_infos;
 
-    system.create(4);
+    // system.create(4);
 
     Iterator it;
     it.alphabet = params->container_sizes;
@@ -350,6 +413,8 @@ std::vector<Container> compose(Graph *graph, ComposerParams *params) {
         info.container_sizes = container_sizes;
         job_infos.push_back(info);
     }
+
+    std::cout << "Total combinations: " << job_infos.size() << std::endl;
 
     for (int i = 0; i < job_infos.size(); ++i) {
         Job job;
