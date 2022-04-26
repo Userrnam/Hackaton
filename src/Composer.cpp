@@ -158,7 +158,7 @@ void iterative_stage(int mod_container_index, std::vector<Container>& containers
 
     auto start = time(NULL);
     while (true) {
-        int max_delta = -1000;
+        int max_delta = 0;
         int mod_node_index = 0;
         int ext_node_index  = 0;
         int ext_container_index = 0;
@@ -208,10 +208,6 @@ void iterative_stage(int mod_container_index, std::vector<Container>& containers
                     }
                 }
             }
-        }
-
-        if (max_delta <= 0) {
-            return;
         }
 
         // swap nodes
