@@ -7,6 +7,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_FLAGS "-O2")
 include_directories(/usr/local/include)
 add_executable(${PROJECT_NAME}
+	src/Job_System.cpp
 	src/Graph.cpp
 	src/Composer.cpp
 	src/Layout.cpp

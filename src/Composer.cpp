@@ -1,4 +1,5 @@
 #include "Composer.hpp"
+#include "Job_System.hpp"
 
 #include <map>
 
@@ -135,7 +136,8 @@ int external_connections(int m_node, int m_container_index, int e_container_inde
     assert(nodes_in_container.size());
 
     int count = 0;
-    for (auto conn : graph->nodes[m_node].connections) {
+    for (int conn_index = 0; conn_index < graph->nodes[m_node].connections.size(); ++conn_index) {
+        auto conn = graph->nodes[m_node].connections[conn_index];
         if (nodes_in_container[conn.index] == m_container_index) {
             count -= conn.weight;
         } else if (nodes_in_container[conn.index] == e_container_index) {
@@ -292,10 +294,40 @@ struct Iterator {
     }
 };
 
+struct Job_Info {
+    Graph *graph;
+    std::mutex *res_write_mutex;
+
+    std::vector<Container> *res;
+    int *min_cost;
+
+    std::vector<int> container_sizes;
+};
+
+void execute_job(void *user_data) {
+    Job_Info *info = (Job_Info *)user_data;
+
+    auto t = compose_iteration(info->graph, info->container_sizes);
+    int t_cost = cost(t);
+
+    info->res_write_mutex->lock();
+    if (t_cost < *info->min_cost) {
+        *info->min_cost = t_cost;
+        *info->res = t;
+    }
+    info->res_write_mutex->unlock();
+}
+
 std::vector<Container> compose(Graph *graph, ComposerParams *params) {
     int min_cost = INT_MAX;
     std::vector<Container> res;
     std::map<std::vector<int>, bool> seen_previously;
+
+    Job_System system;
+    std::mutex res_write_mutex;
+    std::vector<Job_Info> job_infos;
+
+    system.create(4);
 
     Iterator it;
     it.alphabet = params->container_sizes;
@@ -309,13 +341,27 @@ std::vector<Container> compose(Graph *graph, ComposerParams *params) {
         }
         seen_previously[container_sizes] = 1;
 
-        auto t = compose_iteration(graph, container_sizes);
-        int t_cost = cost(t);
-        if (t_cost < min_cost) {
-            min_cost = t_cost;
-            res = t;
-        }
+        // add job info
+        Job_Info info;
+        info.graph = graph;
+        info.res_write_mutex = &res_write_mutex;
+        info.res = &res;
+        info.min_cost = &min_cost;
+        info.container_sizes = container_sizes;
+        job_infos.push_back(info);
     }
+
+    for (int i = 0; i < job_infos.size(); ++i) {
+        Job job;
+        job.user_data = &job_infos[i];
+        job.execute = execute_job;
+        system.add_job(job);
+    }
+
+    // execute jobs on this thread.
+    while (system.execute_job()) {}
+
+    system.destroy();
 
     return res;
 }
