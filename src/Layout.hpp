@@ -32,4 +32,5 @@ struct Layout {
     }
 };
 
-Layout create_layout(const std::vector<Container>& containers, const Board& board);
+Layout create_layout(const std::vector<Container>& containers);
+float cost(const Layout& layout, const std::vector<Container>& containers);

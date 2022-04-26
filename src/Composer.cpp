@@ -212,12 +212,12 @@ void iterative_stage(int mod_container_index, std::vector<Container>& containers
 
         // swap nodes
         if (max_delta > 0) {
-            static int printer = 0;
-            printer++;
-            if (printer > 100) {
-                std::cout << "Delta: " << max_delta << std::endl;
-                printer = 0;
-            }
+            // static int printer = 0;
+            // printer++;
+            // if (printer > 100) {
+            //     std::cout << "Delta: " << max_delta << std::endl;
+            //     printer = 0;
+            // }
 
             auto& e_container = containers[ext_container_index];
             int m_node = m_container.nodes[mod_node_index];
@@ -262,9 +262,7 @@ std::vector<Container> compose_iteration(Graph *graph, std::vector<int> containe
     }
 
     for (int i = 0; i < containers.size()-1; ++i) {
-        std::cout << "Beg " << i << std::endl;
         iterative_stage(i, containers, graph, nodes_in_container, container_nodes);
-        std::cout << "End " << i << std::endl;
     }
 
     // find connections
@@ -372,7 +370,7 @@ void execute_job(void *user_data) {
         *info->res = t;
     }
 
-    std::cout << "Done in " << time(NULL) - start << std::endl;
+    // std::cout << "Done in " << time(NULL) - start << std::endl;
 
     info->res_write_mutex->unlock();
 }
@@ -386,7 +384,7 @@ std::vector<Container> compose(Graph *graph, ComposerParams *params) {
     std::mutex res_write_mutex;
     std::vector<Job_Info> job_infos;
 
-    // system.create(4);
+    system.create(4);
 
     Iterator it;
     it.alphabet = params->container_sizes;
@@ -419,8 +417,15 @@ std::vector<Container> compose(Graph *graph, ComposerParams *params) {
         system.add_job(job);
     }
 
+    int x = job_infos.size() - 1000;
     // execute jobs on this thread.
-    while (system.execute_job()) {}
+    while (system.execute_job()) {
+        int count = system.job_count();
+        if (count < x) {
+            std::cout << count << std::endl;
+            x -= 1000;
+        }
+    }
 
     system.destroy();
 

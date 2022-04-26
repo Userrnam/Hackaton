@@ -35,4 +35,5 @@ public:
 	void wait_for_complition();
 	void clear_jobs();
 	void add_job(const Job& job);
+	int job_count() { return _jobs.size(); }
 };

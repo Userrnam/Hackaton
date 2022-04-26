@@ -19,13 +19,13 @@
 int main() {
     Graph graph;
 
-    graph.load("/Users/antonkondratuk/Desktop/uni/Berchun/hackaton3/test10000.txt");
+    graph.load("/Users/antonkondratuk/Desktop/uni/Berchun/hackaton3/test101.txt");
 
     auto start = time(NULL);
 
     ComposerParams params;
     params.container_sizes = {
-        1000,2000,2500,3000
+        3,4,5,7,11
     };
     auto containers = compose(&graph, &params);
     std::cout << "Time: " << time(NULL) - start << std::endl;
@@ -41,13 +41,11 @@ int main() {
     // show value of cost function
     std::cout << "Cost: " << cost(containers) << std::endl;
 
-    Board board;
-    board.width  = 3;
-    board.height = 3;
-
-    auto layout = create_layout(containers, board);
+    auto layout = create_layout(containers);
 
     std::cout << "Time: " << time(NULL) - start << std::endl;
     std::cout << "Optimal container layout:\n";
     layout.print();
+
+    std::cout << "Cost: " << cost(layout, containers) << std::endl;
 }

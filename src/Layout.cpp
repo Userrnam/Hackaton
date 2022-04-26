@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <assert.h>
+#include <float.h>
 
 
 template<typename T>
@@ -76,11 +77,11 @@ int absi(int a) {
     return a > 0 ? a : -a;
 }
 
-float relative_length(Layout& layout, const Container& container, int cx, int cy) {
+float relative_length(const Layout& layout, const Container& container, Coord coord) {
     float l = 0;
     for (auto conn : container.connections) {
-        int dx = cx - layout.container_coords[conn.index].x;
-        int dy = cy - layout.container_coords[conn.index].y;
+        int dx = coord.x - layout.container_coords[conn.index].x;
+        int dy = coord.y - layout.container_coords[conn.index].y;
 
         l += conn.weight * (absi(dx) + absi(dy));
     }
@@ -97,7 +98,7 @@ float dL(Layout& layout, const std::vector<Container>& containers, Coord coord1,
     }
     layout.container_coords[v1] = coord2;
 
-    auto l1 = relative_length(layout, containers[v1], coord2.x, coord2.y);
+    auto l1 = relative_length(layout, containers[v1], coord2);
 
     // move to new location
     if (v2 == -1) {
@@ -107,7 +108,7 @@ float dL(Layout& layout, const std::vector<Container>& containers, Coord coord1,
         return distances[v1] - l1;
     }
 
-    auto l2 = relative_length(layout, containers[v2], coord1.x, coord1.y);
+    auto l2 = relative_length(layout, containers[v2], coord1);
 
     // swap back
     layout.container_coords[v2] = coord2;
@@ -120,7 +121,7 @@ bool iterate(Layout& layout, const std::vector<Container>& containers) {
     std::vector<float> distances;
     distances.resize(containers.size(), 0);
     for (int i = 0; i < containers.size(); ++i) {
-        distances[i] = relative_length(layout, containers[i], layout.container_coords[i].x, layout.container_coords[i].y);
+        distances[i] = relative_length(layout, containers[i], layout.container_coords[i]);
     }
 
     int container_index = max_index(distances);
@@ -195,6 +196,51 @@ bool iterate(Layout& layout, const std::vector<Container>& containers) {
 
         if (id != -1) {
             layout.container_coords[id] = coord1;
+        } else {
+            if (coord1.x == 0) {
+                bool empty = true;
+                for (int x = 0; x < layout.blocks.size(); ++x) {
+                    if (layout.blocks[x][0] != -1) {
+                        empty = false;
+                        break;
+                    }
+                }
+                // move all containers left
+                if (empty) {
+                    for (int x = 0; x < layout.blocks.size(); ++x) {
+                        for (int y = 1; y < layout.blocks[0].size(); ++y) {
+                            layout.blocks[x][y-1] = layout.blocks[x][y];
+                            layout.blocks[x][y] = -1;
+                            int id = layout.blocks[x][y-1];
+                            if (id != -1) {
+                                layout.container_coords[id] = { x, y-1 };
+                            }
+                        }
+                    }
+                }
+            }
+            if (coord1.y == 0) {
+                bool empty = true;
+                for (int y = 0; y < layout.blocks[0].size(); ++y) {
+                    if (layout.blocks[0][y] != -1) {
+                        empty = false;
+                        break;
+                    }
+                }
+                // move all containers up
+                if (empty) {
+                    for (int x = 1; x < layout.blocks.size(); ++x) {
+                        for (int y = 0; y < layout.blocks[0].size(); ++y) {
+                            layout.blocks[x-1][y] = layout.blocks[x][y];
+                            layout.blocks[x][y] = -1;
+                            int id = layout.blocks[x-1][y];
+                            if (id != -1) {
+                                layout.container_coords[id] = { x-1, y };
+                            }
+                        }
+                    }
+                }
+            }
         }
         layout.container_coords[container_index] = target;
 
@@ -204,7 +250,7 @@ bool iterate(Layout& layout, const std::vector<Container>& containers) {
     return false;
 }
 
-Layout create_layout(const std::vector<Container>& containers, const Board& board) {
+Layout layout_iterate(const std::vector<Container>& containers, const Board& board) {
     assert(board.width  > 0);
     assert(board.height > 0);
 
@@ -229,7 +275,37 @@ Layout create_layout(const std::vector<Container>& containers, const Board& boar
 
     sequential_stage(layout, containers);
 
-    while (iterate(layout, containers)) {  }
+    while (iterate(layout, containers)) { }
 
     return layout;
+}
+
+Layout create_layout(const std::vector<Container>& containers) {
+    Layout best_layout;
+    float min_cost = FLT_MAX;
+
+    Board board;
+    board.width = containers.size();
+    board.height = 1;
+
+    while (board.width > 0) {
+        auto layout = layout_iterate(containers, board);
+        float layout_cost = cost(layout, containers);
+        if (layout_cost < min_cost) {
+            min_cost = layout_cost;
+            best_layout = layout;
+        }
+        board.width--;
+        board.height++;
+    }
+
+    return best_layout;
+}
+
+float cost(const Layout& layout, const std::vector<Container>& containers) {
+    float sum = 0;
+    for (int i = 0; i < containers.size(); ++i) {
+        sum += relative_length(layout, containers[i], layout.container_coords[i]);
+    }
+    return sum / 2;
 }
