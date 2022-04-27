@@ -19,27 +19,29 @@
 int main() {
     Graph graph;
 
-    graph.load("/Users/antonkondratuk/Desktop/uni/Berchun/hackaton3/test101.txt");
+    graph.load("/Users/antonkondratuk/Desktop/uni/Berchun/hackaton3/test10000.txt");
 
     auto start = time(NULL);
 
     ComposerParams params;
     params.container_sizes = {
-        3,4,5,7,11
+        1000,2000,2500,3000
     };
     auto containers = compose(&graph, &params);
     std::cout << "Time: " << time(NULL) - start << std::endl;
-    std::cout << "Nodes in containers:\n";
+    std::cout << "Container sizes: [ ";
     for (int i = 0; i < containers.size(); ++i) {
-        printf("Container %3d: [ ", i);
-        for (auto& node : containers[i].nodes) {
-            printf("%3d ", node);
-        }
-        printf("];\n");
+        std::cout << containers[i].nodes.size() << " ";
+        // printf("Container %3d: [ ", i);
+        // for (auto& node : containers[i].nodes) {
+        //     printf("%3d ", node);
+        // }
+        // printf("];\n");
     }
+    std::cout << "];\n";
 
     // show value of cost function
-    std::cout << "Cost: " << cost(containers) << std::endl;
+    std::cout << "Composer Cost: " << cost(containers) << std::endl;
 
     auto layout = create_layout(containers);
 
@@ -47,5 +49,5 @@ int main() {
     std::cout << "Optimal container layout:\n";
     layout.print();
 
-    std::cout << "Cost: " << cost(layout, containers) << std::endl;
+    std::cout << "Layout Cost: " << cost(layout, containers) << std::endl;
 }

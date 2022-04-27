@@ -191,12 +191,17 @@ void iterative_stage(int mod_container_index, std::vector<Container>& containers
                     }
 
                     int same = 0;
-                    for (int conn_index = 0; conn_index < graph->nodes[m_node].connections.size(); ++conn_index) {
-                        auto conn = graph->nodes[m_node].connections[conn_index];
-                        if (conn.index == e_node) {
-                            same = conn.weight;
-                            break;
-                        }
+                    auto& connections = graph->nodes[m_node].connections;
+                    int conn_index;
+                    for (conn_index = 0; conn_index < connections.size() && connections[conn_index].index < e_node; ++conn_index) {
+                        // auto conn = connections[conn_index];
+                        // if (conn.index == e_node) {
+                        //     same = conn.weight;
+                        //     break;
+                        // }
+                    }
+                    if (conn_index < connections.size() && connections[conn_index].index == e_node) {
+                        same = connections[conn_index].weight;
                     }
 
                     delta -= 2 * same;
@@ -212,12 +217,6 @@ void iterative_stage(int mod_container_index, std::vector<Container>& containers
 
         // swap nodes
         if (max_delta > 0) {
-            // static int printer = 0;
-            // printer++;
-            // if (printer > 100) {
-            //     std::cout << "Delta: " << max_delta << std::endl;
-            //     printer = 0;
-            // }
 
             auto& e_container = containers[ext_container_index];
             int m_node = m_container.nodes[mod_node_index];
@@ -370,9 +369,19 @@ void execute_job(void *user_data) {
         *info->res = t;
     }
 
-    // std::cout << "Done in " << time(NULL) - start << std::endl;
+    if (time(NULL) - start > 10) {
+        std::cout << "Done Job in " << time(NULL) - start << std::endl;
+    }
 
     info->res_write_mutex->unlock();
+}
+
+int sum_vec(const std::vector<int>& v) {
+    int sum = 0;
+    for (int i = 0; i < v.size(); ++i) {
+        sum += v[i];
+    }
+    return sum;
 }
 
 std::vector<Container> compose(Graph *graph, ComposerParams *params) {
@@ -393,6 +402,10 @@ std::vector<Container> compose(Graph *graph, ComposerParams *params) {
     std::vector<int> container_sizes;
     int i = 0;
     while (it.next(container_sizes)) {
+        if (sum_vec(container_sizes) != graph->nodes.size()) {
+            continue;
+        }
+
         if (seen_previously.find(container_sizes) != seen_previously.end()) {
             break;
         }
@@ -422,7 +435,7 @@ std::vector<Container> compose(Graph *graph, ComposerParams *params) {
     while (system.execute_job()) {
         int count = system.job_count();
         if (count < x) {
-            std::cout << count << std::endl;
+            std::cout << "Jobs left: " << count << std::endl;
             x -= 1000;
         }
     }

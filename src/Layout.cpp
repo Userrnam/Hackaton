@@ -88,6 +88,17 @@ float relative_length(const Layout& layout, const Container& container, Coord co
     return l / container.weight;
 }
 
+int container_cost(const Layout& layout, const Container& container, Coord coord) {
+    int l = 0;
+    for (auto conn : container.connections) {
+        int dx = coord.x - layout.container_coords[conn.index].x;
+        int dy = coord.y - layout.container_coords[conn.index].y;
+
+        l += conn.weight * (absi(dx) + absi(dy));
+    }
+    return l;
+}
+
 float dL(Layout& layout, const std::vector<Container>& containers, Coord coord1, Coord coord2, const std::vector<float>& distances) {
     int v1 = layout.blocks[coord1.x][coord1.y];
     int v2 = layout.blocks[coord2.x][coord2.y];
@@ -299,13 +310,29 @@ Layout create_layout(const std::vector<Container>& containers) {
         board.height++;
     }
 
+    for (int i = best_layout.blocks.size()-1; i >= 0; --i) {
+        bool empty = true;
+        for (int j = 0; j < best_layout.blocks[i].size(); ++j) {
+            if (best_layout.blocks[i][j] != -1) {
+                empty = false;
+                break;
+            }
+        }
+        if (empty) {
+            best_layout.blocks.pop_back();
+        } else {
+            break;
+        }
+    }
+
     return best_layout;
 }
 
-float cost(const Layout& layout, const std::vector<Container>& containers) {
-    float sum = 0;
+int cost(const Layout& layout, const std::vector<Container>& containers) {
+    int sum = 0;
     for (int i = 0; i < containers.size(); ++i) {
-        sum += relative_length(layout, containers[i], layout.container_coords[i]);
+        sum += container_cost(layout, containers[i], layout.container_coords[i]);
     }
+    assert(sum % 2 == 0);
     return sum / 2;
 }

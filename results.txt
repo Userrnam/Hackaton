@@ -1,0 +1,79 @@
+20:
+Total combinations: 10
+Time: 0
+Container sizes: [ 3 3 7 7 ];
+Composer Cost: 28
+Time: 0
+Optimal container layout:
+      2     
+  0   3   1 
+Layout Cost: 29
+
+50:
+Total combinations: 3
+Time: 0
+Container sizes: [ 10 10 13 17 ];
+Composer Cost: 541
+Time: 0
+Optimal container layout:
+      2     
+  0   3   1 
+Layout Cost: 569
+
+250:
+Total combinations: 12
+Time: 0
+Container sizes: [ 30 70 70 80 ];
+Composer Cost: 23762
+Time: 0
+Optimal container layout:
+      3     
+  0   2   1 
+Layout Cost: 27549
+
+1000:
+Total combinations: 18
+Time: 0
+Container sizes: [ 100 225 225 225 225 ];
+Composer Cost: 242817
+Time: 0
+Optimal container layout:
+  0   3   2 
+      4   1 
+Layout Cost: 359743
+
+10000:
+Total combinations: 20
+Time: 898
+Container sizes: [ 1000 3000 3000 3000 ];
+Composer Cost: 25414169
+Time: 898
+Optimal container layout:
+      3     
+  0   2   1 
+Layout Cost: 29733193
+
+101:
+Total combinations: 516
+Time: 0
+Container sizes: [ 4 4 5 11 11 11 11 11 11 11 11 ];
+Composer Cost: 2898
+Time: 0
+Optimal container layout:
+  0   1   2 
+  7   8   3 
+  9  10   5 
+      4   6 
+Layout Cost: 6041
+
+777:
+Total combinations: 5689
+Time: 13
+Container sizes: [ 17 67 77 77 77 77 77 77 77 77 77 ];
+Composer Cost: 56952
+Time: 13
+Optimal container layout:
+  0   1   5     
+  3   7   6  10 
+  9   8   4   2 
+Layout Cost: 123425
